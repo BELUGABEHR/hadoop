@@ -81,7 +81,8 @@ class LocalCacheCleaner {
    * @return stats about what was cleaned up during this call of cleanCache
    */
   public LocalCacheCleanerStats cleanCache() {
-    LocalCacheCleanerStats stats = new LocalCacheCleanerStats(currentSize);
+    LocalCacheCleanerStats stats =
+        new LocalCacheCleanerStats(currentSize, targetSize);
     for (Iterator<Map.Entry<LocalizedResource, LocalResourcesTracker>> i =
         resourceMap.entrySet().iterator();
         currentSize - stats.totalDelSize > targetSize && i.hasNext();) {
@@ -99,12 +100,14 @@ class LocalCacheCleaner {
   static class LocalCacheCleanerStats {
     private final Map<String, Long> userDelSizes = new TreeMap<String, Long>();
     private final long cacheSizeBeforeClean;
+    private final long targetCacheSizeAfterClean;
     private long totalDelSize;
     private long publicDelSize;
     private long privateDelSize;
 
-    LocalCacheCleanerStats(long cacheSizeBeforeClean) {
+    LocalCacheCleanerStats(long cacheSizeBeforeClean, long targetSize) {
       this.cacheSizeBeforeClean = cacheSizeBeforeClean;
+      this.targetCacheSizeAfterClean = targetSize;
     }
 
     void incDelSize(String user, long delSize) {
@@ -148,6 +151,8 @@ class LocalCacheCleaner {
       StringBuilder sb = new StringBuilder();
       sb.append("Cache Size Before Clean: ").append(cacheSizeBeforeClean)
           .append(", ");
+      sb.append("Target Size After Clean: ").append(targetCacheSizeAfterClean)
+      .append(", ");
       sb.append("Total Deleted: ").append(totalDelSize).append(", ");
       sb.append("Public Deleted: ").append(publicDelSize).append(", ");
       sb.append("Private Deleted: ").append(privateDelSize);
