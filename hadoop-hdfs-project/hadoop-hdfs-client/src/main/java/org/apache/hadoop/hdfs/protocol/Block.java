@@ -27,11 +27,17 @@ import org.apache.hadoop.io.*;
 
 import javax.annotation.Nonnull;
 
-/**************************************************
- * A Block is a Hadoop FS primitive, identified by a
- * long.
- *
- **************************************************/
+/**
+ * A Block is a Hadoop FS primitive, identified by its block ID (a long). A
+ * block also has an accompanying generation stamp. A generation stamp is a
+ * monotonically increasing 8-byte number for each block that is maintained
+ * persistently by the NameNode. However, for the purposes of this class, two
+ * Blocks are considered equal iff they have the same block ID.
+ * 
+ * @see Block#equals(Object)
+ * @see Block#hashCode()
+ * @see Block#compareTo(Block)
+ */
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
 public class Block implements Writable, Comparable<Block> {
@@ -119,8 +125,7 @@ public class Block implements Writable, Comparable<Block> {
     this.numBytes = len;
     this.generationStamp = genStamp;
   }
-  /**
-   */
+
   public long getBlockId() {
     return blockId;
   }
@@ -129,18 +134,14 @@ public class Block implements Writable, Comparable<Block> {
     blockId = bid;
   }
 
-  /**
-   */
   public String getBlockName() {
-    return new StringBuilder().append(BLOCK_FILE_PREFIX)
-        .append(blockId).toString();
+    return BLOCK_FILE_PREFIX + blockId;
   }
 
-  /**
-   */
   public long getNumBytes() {
     return numBytes;
   }
+
   public void setNumBytes(long len) {
     this.numBytes = len;
   }
@@ -161,27 +162,24 @@ public class Block implements Writable, Comparable<Block> {
    * @return the string representation of the block
    */
   public static String toString(final Block b) {
-    StringBuilder sb = new StringBuilder();
-    sb.append(BLOCK_FILE_PREFIX).
-       append(b.blockId).append("_").
-       append(b.generationStamp);
-    return sb.toString();
+    return new StringBuilder(BLOCK_FILE_PREFIX)
+        .append(b.blockId)
+        .append('_')
+        .append(b.generationStamp)
+        .toString();
   }
 
-  /**
-   */
   @Override
   public String toString() {
-    return toString(this);
+    return Block.toString(this);
   }
 
   public void appendStringTo(StringBuilder sb) {
     sb.append(BLOCK_FILE_PREFIX)
       .append(blockId)
-      .append("_")
+      .append('_')
       .append(getGenerationStamp());
   }
-
 
   /////////////////////////////////////
   // Writable
@@ -223,32 +221,45 @@ public class Block implements Writable, Comparable<Block> {
     this.generationStamp = in.readLong();
   }
 
-  @Override // Comparable
+  @Override
   public int compareTo(@Nonnull Block b) {
-    return blockId < b.blockId ? -1 :
-        blockId > b.blockId ? 1 : 0;
+    return Long.compare(blockId, b.blockId);
   }
 
-  @Override // Object
-  public boolean equals(Object o) {
-    return this == o || o instanceof Block && compareTo((Block) o) == 0;
+  @Override
+  public boolean equals(Object obj) {
+    if (!(obj instanceof Block)) {
+      return false;
+    }
+    Block other = (Block) obj;
+    return (blockId == other.blockId);
+  }
+
+  @Override
+  public int hashCode() {
+    return Long.hashCode(blockId);
   }
 
   /**
-   * @return true if the two blocks have the same block ID and the same
+   * A helper function to determine if two blocks are equal, based on the block
+   * ID and the generation stamp. This is a different equalities check than the
+   * default behavior of the Block class. Two blocks are considered equal by
+   * this function iff the two blocks have the same block ID and the same
    * generation stamp, or if both blocks are null.
+   *
+   * @param a an object
+   * @param b an object to be compared with {@code a} for equality
+   * @return {@code true} if the blocks are deeply equal to each other and
+   *         {@code false} otherwise
+   * @see Block
    */
   public static boolean matchingIdAndGenStamp(Block a, Block b) {
-    if (a == b) return true; // same block, or both null
-    // only one null
-    return !(a == null || b == null) &&
-        a.blockId == b.blockId &&
-        a.generationStamp == b.generationStamp;
-  }
-
-  @Override // Object
-  public int hashCode() {
-    //GenerationStamp is IRRELEVANT and should not be used here
-    return (int)(blockId^(blockId>>>32));
+    if (a == b) {
+      return true;
+    } else if (a == null || b == null) {
+      return false;
+    } else {
+      return a.blockId == b.blockId && a.generationStamp == b.generationStamp;
+    }
   }
 }
